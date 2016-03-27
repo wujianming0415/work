@@ -1,0 +1,207 @@
+<script type="text/javascript" src="{{cdn}}/js/bootstrap-datepicker.js"></script>
+<script src="http://code.highcharts.com/highcharts.js"></script>
+<script src="http://code.highcharts.com/modules/exporting.js"></script>
+<link href="{{cdn}}/css/datepicker.css" rel="stylesheet" type="text/css" />
+<!--
+	<ul class="breadcrumb">
+		<li><a href="{{main_admin_site}}/dashboard/">达人统计</a> <span class="divider">|</span></li>
+	    <li style="" class="active">每日用户<span class="divider">|</span></li>
+		<li><a href="{{main_admin_site}}/dashboard/transaction">每日交易</a> <span class="divider">|</span></li>
+	</ul>
+-->
+
+
+
+
+<div class="row-fluid" style="margin-top: 20px;">
+<div class="span3">
+
+
+<div class="input-append date" id="clock_from" data-date="{{time_from}}"
+	style="display: inline-block; float: left;"
+	data-date-format="yyyy-mm-dd"><input id="time_from" class="" size="16"
+	type="text" value="{{time_from}}" readonly="" title="开始日期"> <span
+	class="add-on"><i class="icon-calendar"></i></span></div>
+</div>
+
+<div class="span3">
+
+<div class="input-append date" id="clock_to" data-date="{{time_to}}"
+	data-date-format="yyyy-mm-dd"><input id="time_to" class="" size="16"
+	type="text" value="{{time_to}}" readonly="" title="结束日期"> <span
+	class="add-on"><i class="icon-calendar"></i></span></div>
+
+</div>
+
+<div class="span3"><select id="select_lang" title="选择语言">
+	<option value="all">不区分语言</option>
+	<option value="tw">繁体中文</option>
+	<option value="pt">葡语</option>
+	<option value="tr">土耳其语</option>
+	<option value="en">英语</option>
+	<option value="zh">简体中文</option>
+	<option value="us">英语（美国）</option>
+	<option value="de">德语</option>
+	<option value="pl">波兰语</option>
+	<option value="es">西班牙语</option>
+</select>
+
+</div>
+
+<div class="span1">
+<button id="btn-search" class="btn btn-success">查询</button>
+</div>
+</div>
+
+<div id="container" style="min-width: 310px; height: 400px; margin: 20px auto"></div>
+<table class="table table-hover" style="margin-top: 20px; margin-bottom: 20px ! important;">
+	<thead>
+		<tr>
+			<th>#</th>
+			<th>总计发放</th>
+			<th>总计消耗</th>
+			<th>有效余额</th>
+			<th>当天收入次数</th>
+			<th>收入额度</th>
+			<th>当天消费次数</th>
+			<th>消费337券量</th>
+			<th>消费337币量</th>
+			<th>语言</th>
+		</tr>
+	</thead>
+	<tbody id="view-stat">
+
+	</tbody>
+</table>
+<span> * 一次查询最多展示31条数据，若起止时间设置有误，查询结束时间最近7天记录</span>
+<script>
+var thisCategories = new Array();
+var thisIncome = new Array();
+var thisCost = new Array();
+$('#clock_from').datepicker();
+$('#clock_to').datepicker();
+
+var lang = 'all';
+var date_from = '{{time_from}}';
+var date_to = '{{time_to}}';
+var  view_stat_data = '';
+var clickValid = 1;
+var urlUserStat = "coupon/index/json";
+var getUserStat = function(lang, date_from, date_to){
+	var params = {lang:lang,date_from:date_from,date_to:date_to};
+	elex.request.get(
+		urlUserStat,
+		params,
+        function(ret){
+    	   if(ret.status == 1){
+    		   thisCategories = new Array();
+    		   thisIncome = new Array();
+    		   thisCost = new Array();
+    		   
+        	   view_stat_data = '';
+
+        	   for(i=0; i<ret.stat.length; i++){
+            	   thisCategories.unshift(ret.stat[i]['date']);
+            	   if(ret.stat[i]['data']){
+            		   view_stat_data += '<tr><td>'+ret.stat[i]['date']+'</td>'+
+						'<td>'+ret.stat[i]['data']['amount_income_all']+'</td>'+
+						'<td>'+ret.stat[i]['data']['amount_cost_all']+'</td>'+
+						'<td>'+ret.stat[i]['data']['amount_valid']+'</td>'+
+						'<td>'+ret.stat[i]['data']['count_income']+'</td>'+
+						'<td>'+ret.stat[i]['data']['amount_income']+'</td>'+
+						'<td>'+ret.stat[i]['data']['count_cost']+'</td>'+
+						'<td>'+ret.stat[i]['data']['amount_cost']+'</td>'+
+						'<td>'+ret.stat[i]['data']['amount_credit']+'</td>'+
+						'<td>'+ret.stat[i]['data']['lang']+'</td></tr>';
+
+            		   thisIncome.unshift(parseInt(ret.stat[i]['data']['amount_income']));
+            		   thisCost.unshift(parseInt(ret.stat[i]['data']['amount_cost']));
+            		   
+            	   }else{
+            		   view_stat_data += '<tr><td>'+ret.stat[i]['date']+'</td>'+
+						'<td>0</td>'+
+						'<td>0</td>'+
+						'<td>0</td>'+
+						'<td>0</td>'+
+						'<td>0</td>'+
+						'<td>0</td>'+
+						'<td>0</td>'+
+						'<td>0</td><td>'+lang+'</td></tr>';
+            		   thisIncome.unshift(0);
+            		   thisCost.unshift(0);
+            	   }
+        	   }
+    		  $("#view-stat").html(view_stat_data);
+    		  
+    		  initView();
+    	   }
+    	   clickValid = 1;
+       }
+  );
+};
+
+
+$("#btn-search").click(function(){
+	if(clickValid == 0){
+		return ;
+	}	
+	clickValid = 0;
+	lang = $("#select_lang").val();
+	date_from = $("#time_from").val();
+	date_to = $("#time_to").val();
+
+	getUserStat(lang, date_from, date_to);
+});
+
+getUserStat(lang, date_from, date_to);
+
+
+var initView = function(){
+    $('#container').highcharts({
+        chart: {
+            type: 'line'
+        },
+        title: {
+            text: '337券收入/消费分布图'
+        },
+        subtitle: {
+            text: ''
+        },
+        xAxis: {
+        	categories: thisCategories
+           // categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        },
+        yAxis: {
+            title: {
+                text: '337券 (coupon)'
+            }
+        },
+        tooltip: {
+            enabled: false,
+            formatter: function() {
+                return '<b>'+ this.series.name +'</b><br/>'+
+                    this.x +': '+ this.y +'°C';
+            }
+        },
+        plotOptions: {
+            line: {
+                dataLabels: {
+                    enabled: true
+                },
+                enableMouseTracking: false
+            }
+        },
+        series: [{
+            name: '收入',
+            data: thisIncome
+           // data: [7.0, 6.9, 9.5, 14.5, 18.4, 21.5, 25.2, 26.5, 23.3, 18.3, 13.9, 9.6]
+        }, {
+            name: '消费',
+            data: thisCost
+            //data: [3.9, 4.2, 5.7, 8.5, 11.9, 15.2, 17.0, 16.6, 14.2, 10.3, 6.6, 4.8]
+        }]
+    });
+};
+
+
+</script>
